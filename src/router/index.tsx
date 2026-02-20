@@ -19,6 +19,7 @@ const StockAdjustPage = lazy(() => import('../pages/stock/StockAdjustPage'));
 const ReturnsPage = lazy(() => import('../pages/returns/ReturnsPage'));
 const ReportsPage = lazy(() => import('../pages/reports/ReportsPage'));
 const ClosingPage = lazy(() => import('../pages/closing/ClosingPage'));
+const SalesPage = lazy(() => import('../pages/sales/SalesPage'));
 
 const LoadingSpinner = () => (
     <div className="flex items-center justify-center h-full min-h-screen">
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
                     { path: '/expenses', element: <Suspense fallback={<LoadingSpinner />}><ExpensesPage /></Suspense> },
                     { path: '/stock/adjust', element: <Suspense fallback={<LoadingSpinner />}><StockAdjustPage /></Suspense> },
                     { path: '/returns/new', element: <Suspense fallback={<LoadingSpinner />}><ReturnsPage /></Suspense> },
+                    { path: '/sales', element: <Suspense fallback={<LoadingSpinner />}><SalesPage /></Suspense> },
                     { path: '/reports', element: <Suspense fallback={<LoadingSpinner />}><ReportsPage /></Suspense> },
                     { path: '/closing', element: <Suspense fallback={<LoadingSpinner />}><ClosingPage /></Suspense> },
                     {

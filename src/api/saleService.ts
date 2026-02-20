@@ -3,6 +3,8 @@ import { Sale, CreateSalePayload, CreateSaleByBarcodePayload } from '../types/sa
 
 export const saleService = {
     create: (data: CreateSalePayload) => api.post<Sale>('/sales', data),
+    getAll: (params?: { from?: string; to?: string; paymentMethod?: string }) =>
+        api.get<Sale[]>('/sales', { params }),
     getById: (id: string) => api.get<Sale>(`/sales/${id}`),
     scan: (data: CreateSaleByBarcodePayload) => api.post<Sale>('/sales/scan', data),
     printInvoiceUrl: (id: string) => `${import.meta.env.VITE_API_URL}/api/sales/${id}/print`,

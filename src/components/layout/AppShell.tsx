@@ -13,6 +13,7 @@ import {
     Store,
     Moon,
     ChevronRight,
+    Receipt,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { toast } from 'sonner';
@@ -20,6 +21,7 @@ import { toast } from 'sonner';
 const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/pos', icon: ShoppingCart, label: 'POS' },
+    { to: '/sales', icon: Receipt, label: 'Sales' },
     { to: '/products', icon: Package, label: 'Products' },
     { to: '/purchases', icon: TruckIcon, label: 'Purchase' },
     { to: '/expenses', icon: DollarSign, label: 'Expenses' },
