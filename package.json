@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "package": "npm run build && electron-packager . \"Shoe POS\" --platform=win32 --arch=x64 --out=release --overwrite --ignore=node_modules/.cache --ignore=release"
+    "package": "npm run build && electron-packager . \"Shoe POS\" --platform=win32 --arch=x64 --out=release --overwrite --ignore=\"^/release\" --ignore=\"^/src\" --ignore=\"^/electron\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
