@@ -1,0 +1,12 @@
+src/
+electron/
+release/
+.vscode/
+.git/
+*.md
+*.log
+vite.config.ts
+tsconfig*.json
+eslint.config.js
+postcss.config.js
+tailwind.config.js
