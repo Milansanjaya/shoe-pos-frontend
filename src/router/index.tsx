@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { ProtectedRoute, AdminRoute, PublicRoute } from './Guards';
 import AppShell from '../components/layout/AppShell';
@@ -27,11 +27,17 @@ const LoadingSpinner = () => (
     </div>
 );
 
-const router = createBrowserRouter([
+const s = (C: React.LazyExoticComponent<any>) => (
+    <Suspense fallback={<LoadingSpinner />}><C /></Suspense>
+);
+
+// createMemoryRouter: works in ALL environments including Electron file://
+// because routing state is kept in memory, not in the URL
+const router = createMemoryRouter([
     {
         element: <PublicRoute />,
         children: [
-            { path: '/login', element: <Suspense fallback={<LoadingSpinner />}><LoginPage /></Suspense> },
+            { path: '/login', element: s(LoginPage) },
         ],
     },
     {
@@ -40,34 +46,34 @@ const router = createBrowserRouter([
             {
                 element: <AppShell />,
                 children: [
-                    { path: '/', element: <Suspense fallback={<LoadingSpinner />}><DashboardPage /></Suspense> },
-                    { path: '/dashboard', element: <Suspense fallback={<LoadingSpinner />}><DashboardPage /></Suspense> },
-                    { path: '/pos', element: <Suspense fallback={<LoadingSpinner />}><POSPage /></Suspense> },
-                    { path: '/products', element: <Suspense fallback={<LoadingSpinner />}><ProductsPage /></Suspense> },
-                    { path: '/products/new', element: <Suspense fallback={<LoadingSpinner />}><ProductFormPage /></Suspense> },
-                    { path: '/products/:id', element: <Suspense fallback={<LoadingSpinner />}><ProductDetailPage /></Suspense> },
-                    { path: '/products/:id/barcodes', element: <Suspense fallback={<LoadingSpinner />}><BarcodePrintPage /></Suspense> },
-                    { path: '/products/:id/edit', element: <Suspense fallback={<LoadingSpinner />}><ProductFormPage /></Suspense> },
-                    { path: '/purchases', element: <Suspense fallback={<LoadingSpinner />}><PurchasesListPage /></Suspense> },
-                    { path: '/purchases/new', element: <Suspense fallback={<LoadingSpinner />}><PurchasePage /></Suspense> },
-                    { path: '/purchases/:id', element: <Suspense fallback={<LoadingSpinner />}><PurchaseDetailPage /></Suspense> },
-                    { path: '/expenses', element: <Suspense fallback={<LoadingSpinner />}><ExpensesPage /></Suspense> },
-                    { path: '/stock/adjust', element: <Suspense fallback={<LoadingSpinner />}><StockAdjustPage /></Suspense> },
-                    { path: '/returns/new', element: <Suspense fallback={<LoadingSpinner />}><ReturnsPage /></Suspense> },
-                    { path: '/sales', element: <Suspense fallback={<LoadingSpinner />}><SalesPage /></Suspense> },
-                    { path: '/reports', element: <Suspense fallback={<LoadingSpinner />}><ReportsPage /></Suspense> },
-                    { path: '/closing', element: <Suspense fallback={<LoadingSpinner />}><ClosingPage /></Suspense> },
+                    { path: '/', element: s(DashboardPage) },
+                    { path: '/dashboard', element: s(DashboardPage) },
+                    { path: '/pos', element: s(POSPage) },
+                    { path: '/products', element: s(ProductsPage) },
+                    { path: '/products/new', element: s(ProductFormPage) },
+                    { path: '/products/:id', element: s(ProductDetailPage) },
+                    { path: '/products/:id/barcodes', element: s(BarcodePrintPage) },
+                    { path: '/products/:id/edit', element: s(ProductFormPage) },
+                    { path: '/purchases', element: s(PurchasesListPage) },
+                    { path: '/purchases/new', element: s(PurchasePage) },
+                    { path: '/purchases/:id', element: s(PurchaseDetailPage) },
+                    { path: '/expenses', element: s(ExpensesPage) },
+                    { path: '/stock/adjust', element: s(StockAdjustPage) },
+                    { path: '/returns/new', element: s(ReturnsPage) },
+                    { path: '/sales', element: s(SalesPage) },
+                    { path: '/reports', element: s(ReportsPage) },
+                    { path: '/closing', element: s(ClosingPage) },
                     {
                         element: <AdminRoute />,
                         children: [
-                            { path: '/suppliers', element: <Suspense fallback={<LoadingSpinner />}><SuppliersPage /></Suspense> },
+                            { path: '/suppliers', element: s(SuppliersPage) },
                         ],
                     },
                 ],
             },
         ],
     },
-]);
+], { initialEntries: ['/'] });  // Always start at root
 
 export default function Router() {
     return <RouterProvider router={router} />;
