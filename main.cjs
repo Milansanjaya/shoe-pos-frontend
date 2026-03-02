@@ -27,6 +27,7 @@ function createWindow() {
         webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
+            webSecurity: false, // Required: Vite adds crossorigin attrs that CORS-block under file://
         },
     });
 
