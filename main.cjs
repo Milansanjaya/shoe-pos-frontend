@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -43,13 +43,38 @@ function createWindow() {
     win.webContents.setWindowOpenHandler(({ url }) => {
         const isLocal = url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1') || url.startsWith('blob:');
         if (isLocal) {
+            const isPrint = url.includes('/print');
             return {
                 action: 'allow',
-                overrideBrowserWindowOptions: { width: 900, height: 700, autoHideMenuBar: true },
+                overrideBrowserWindowOptions: {
+                    width: isPrint ? 800 : 900,
+                    height: isPrint ? 700 : 700,
+                    autoHideMenuBar: true,
+                    webPreferences: {
+                        contextIsolation: true,
+                        nodeIntegration: false,
+                    },
+                },
             };
         }
         shell.openExternal(url);
         return { action: 'deny' };
+    });
+
+    // When a child window finishes loading a /print URL, trigger silent print
+    app.on('browser-window-created', (_e, childWin) => {
+        childWin.webContents.on('did-finish-load', () => {
+            const winUrl = childWin.webContents.getURL();
+            if (winUrl.includes('/print')) {
+                childWin.webContents.print(
+                    { silent: false, printBackground: true },
+                    (_success, _errorType) => {
+                        // Close the window after print dialog is dismissed
+                        if (!childWin.isDestroyed()) childWin.close();
+                    }
+                );
+            }
+        });
     });
 }
 
