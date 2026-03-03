@@ -38,7 +38,6 @@ function createWindow() {
         });
     } else {
         win.loadFile(getDistPath());
-        win.webContents.openDevTools(); // Debug: remove after fixing
     }
 
     win.webContents.setWindowOpenHandler(({ url }) => {
