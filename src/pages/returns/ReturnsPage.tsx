@@ -38,14 +38,19 @@ export default function ReturnsPage() {
     const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
     const fetchSale = async () => {
-        if (!saleId) return;
+        if (!saleId.trim()) {
+            toast.error('Please enter Sale ID or Invoice Number');
+            return;
+        }
         setLoadingSale(true);
         try {
-            const res = await saleService.getById(saleId);
+            const res = await saleService.findSale(saleId.trim());
             setSale(res.data);
-            setValue('sale', saleId);
-        } catch {
-            toast.error('Sale not found');
+            setValue('sale', res.data._id); // Use actual sale ID for form submission
+            toast.success(`Found sale: ${res.data.invoiceNumber}`);
+        } catch (error) {
+            console.error('Sale search error:', error);
+            toast.error('Sale not found. Please check the ID or Invoice Number.');
         } finally {
             setLoadingSale(false);
         }
@@ -53,8 +58,15 @@ export default function ReturnsPage() {
 
     const mutation = useMutation({
         mutationFn: returnService.create,
-        onSuccess: () => { toast.success('Return processed'); setSale(null); setSaleId(''); },
-        onError: (e: unknown) => toast.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed'),
+        onSuccess: (res) => { 
+            toast.success(`Return processed successfully! Refund: ${formatCurrency(res.data?.totalRefund || 0)}`); 
+            setSale(null); 
+            setSaleId(''); 
+            // Reset form
+            setValue('items', [{ product: '', size: '', color: '', quantity: 1, refundAmount: 0 }]);
+            setValue('totalRefund', 0);
+        },
+        onError: (e: unknown) => toast.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Return processing failed'),
     });
 
     return (
@@ -67,9 +79,10 @@ export default function ReturnsPage() {
                 <div className="flex gap-2">
                     <input
                         className="input"
-                        placeholder="Paste Sale ID or Invoice Number…"
+                        placeholder="Enter Sale ID (e.g. 65f8a1b...) or Invoice Number (e.g. INV-000123)..."
                         value={saleId}
                         onChange={e => setSaleId(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && fetchSale()}
                     />
                     <button onClick={fetchSale} disabled={loadingSale} className="btn-primary flex items-center gap-2 whitespace-nowrap">
                         {loadingSale ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -79,16 +92,37 @@ export default function ReturnsPage() {
 
                 {sale && (
                     <div className="bg-gray-800 rounded-lg p-3 text-sm space-y-2">
-                        <p className="font-semibold text-white">{sale.invoiceNumber}</p>
+                        <div className="flex items-center justify-between">
+                            <p className="font-semibold text-white">{sale.invoiceNumber}</p>
+                            <p className="text-xs text-gray-400">ID: {sale._id}</p>
+                        </div>
                         <div className="space-y-1">
                             {sale.items.map((item, i) => (
                                 <div key={i} className="flex justify-between text-gray-400">
                                     <span>{(item.product as Product).name ?? 'Product'} — {item.size}/{item.color} ×{item.quantity}</span>
-                                    <span>{formatCurrency(item.price)}</span>
+                                    <span>{formatCurrency(item.price * item.quantity)}</span>
                                 </div>
                             ))}
                         </div>
-                        <p className="font-bold text-white border-t border-gray-700 pt-2">Total: {formatCurrency(sale.totalAmount)}</p>
+                        <div className="border-t border-gray-700 pt-2 space-y-1">
+                            <div className="flex justify-between text-gray-400">
+                                <span>Subtotal:</span>
+                                <span>{formatCurrency(sale.totalAmount)}</span>
+                            </div>
+                            {sale.discountAmount > 0 && (
+                                <div className="flex justify-between text-purple-400">
+                                    <span>Discount:</span>
+                                    <span>-{formatCurrency(sale.discountAmount)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between font-bold text-white">
+                                <span>Grand Total:</span>
+                                <span>{formatCurrency(sale.grandTotal)}</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-2">
+                                Payment: {sale.paymentMethod} • {new Date(sale.createdAt).toLocaleDateString()}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

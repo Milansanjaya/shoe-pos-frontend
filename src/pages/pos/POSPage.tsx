@@ -21,7 +21,10 @@ export default function POSPage() {
     const [selectedVariant, setSelectedVariant] = useState<{ size: string; color: string } | null>(null);
     const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('cart');
     const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+    const [cashReceived, setCashReceived] = useState<number>(0);
     const [scanning, setScanning] = useState(false);
+    const [showSizeModal, setShowSizeModal] = useState(false);
+    const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
     const {
@@ -71,6 +74,40 @@ export default function POSPage() {
         toast.success('Added to cart');
     };
 
+    const handleSizeSelected = (size: string) => {
+        if (!scannedProduct) return;
+        
+        const colorsForSize = scannedProduct.variants
+            .filter(v => v.size === size && v.stock > 0)
+            .map(v => v.color);
+        
+        if (colorsForSize.length === 1) {
+            // Only one color available for this size, add directly
+            addItem({
+                productId: scannedProduct._id,
+                productName: scannedProduct.name,
+                size: size,
+                color: colorsForSize[0],
+                quantity: 1,
+                price: scannedProduct.price,
+            });
+            toast.success(`Added ${scannedProduct.name} (${size}/${colorsForSize[0]})`);
+            setShowSizeModal(false);
+            setScannedProduct(null);
+        } else {
+            // Multiple colors, show them in the modal
+            setSelectedProduct(scannedProduct);
+            setSelectedVariant({ size, color: colorsForSize[0] });
+            setShowSizeModal(false);
+            setScannedProduct(null);
+        }
+    };
+
+    const handleCloseSizeModal = () => {
+        setShowSizeModal(false);
+        setScannedProduct(null);
+    };
+
     /* ========== BARCODE SCAN HANDLER ========== */
     const handleBarcodeScan = async (barcode: string) => {
         if (!barcode.trim()) return;
@@ -95,10 +132,10 @@ export default function POSPage() {
                 });
                 toast.success(`Added ${product.name} (${v.size}/${v.color})`);
             } else {
-                // Multiple variants — let user pick
-                setSelectedProduct(product as Product);
-                setSelectedVariant(null);
-                toast.info(`${product.name} — select a variant`);
+                // Multiple variants — show size selection modal
+                setScannedProduct(product as Product);
+                setShowSizeModal(true);
+                toast.info(`Select size for ${product.name}`);
             }
             setSearchQuery('');
         } catch {
@@ -123,6 +160,7 @@ export default function POSPage() {
     };
 
     const handleConfirmSale = () => {
+        const changeAmt = paymentMethod === 'Cash' && cashReceived > 0 ? Math.max(0, cashReceived - grand) : 0;
         saleMutation.mutate({
             items: items.map(i => ({
                 product: i.productId,
@@ -133,6 +171,8 @@ export default function POSPage() {
             paymentMethod,
             discountType: discountType !== 'NONE' ? discountType : undefined,
             discountValue: discountType !== 'NONE' ? discountValue : undefined,
+            cashReceived: paymentMethod === 'Cash' ? cashReceived : 0,
+            changeAmount: changeAmt,
         });
     };
 
@@ -144,6 +184,7 @@ export default function POSPage() {
     const handleCloseCheckout = () => {
         setCheckoutStep('cart');
         setCompletedSale(null);
+        setCashReceived(0);
     };
 
     const sub = subtotal();
@@ -368,6 +409,29 @@ export default function POSPage() {
                         </button>
                     </div>
 
+                    {/* Cash received input */}
+                    {paymentMethod === 'Cash' && items.length > 0 && (
+                        <div className="space-y-1">
+                            <label className="text-xs text-gray-400 font-medium">Cash Received</label>
+                            <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                placeholder={`Min. ${formatCurrency(grand)}`}
+                                value={cashReceived || ''}
+                                onChange={e => setCashReceived(Math.max(0, Number(e.target.value)))}
+                                className="input text-sm py-1.5"
+                            />
+                            {cashReceived > 0 && (
+                                <p className={`text-xs font-semibold ${cashReceived >= grand ? 'text-green-400' : 'text-red-400'}`}>
+                                    {cashReceived >= grand
+                                        ? `Change: ${formatCurrency(cashReceived - grand)}`
+                                        : `Short by ${formatCurrency(grand - cashReceived)}`}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                     <button
                         onClick={handleOpenCheckout}
                         disabled={items.length === 0}
@@ -444,8 +508,14 @@ export default function POSPage() {
                                 </div>
                             </div>
 
-                            <div className="text-xs text-gray-500 border-t pt-2">
-                                Payment: <span className="font-semibold text-gray-700">{paymentMethod}</span>
+                            <div className="text-xs text-gray-500 border-t pt-2 space-y-0.5">
+                                <div>Payment: <span className="font-semibold text-gray-700">{paymentMethod}</span></div>
+                                {paymentMethod === 'Cash' && cashReceived > 0 && (
+                                    <>
+                                        <div>Cash Received: <span className="font-semibold text-gray-700">{formatCurrency(cashReceived)}</span></div>
+                                        <div className="text-green-600 font-semibold">Change Due: {formatCurrency(Math.max(0, cashReceived - grand))}</div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -508,6 +578,63 @@ export default function POSPage() {
                                 New Sale
                             </button>
                         </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* =============================================
+                SIZE SELECTION MODAL FOR BARCODE SCANNING
+            ============================================= */}
+            <Modal
+                isOpen={showSizeModal}
+                onClose={handleCloseSizeModal}
+                title={`Select Size - ${scannedProduct?.name}`}
+                size="sm"
+            >
+                {scannedProduct && (
+                    <div className="space-y-4">
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-gray-800 rounded-lg mx-auto mb-3 flex items-center justify-center">
+                                <span className="text-2xl">👟</span>
+                            </div>
+                            <p className="text-lg font-semibold text-white">{scannedProduct.name}</p>
+                            <p className="text-sm text-gray-400">{scannedProduct.brand}</p>
+                            <p className="text-lg font-bold text-brand-400 mt-1">{formatCurrency(scannedProduct.price)}</p>
+                        </div>
+                        
+                        <div>
+                            <p className="text-sm font-medium text-gray-300 mb-3">Available Sizes:</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {/* Get unique sizes that have stock */}
+                                {Array.from(new Set(
+                                    scannedProduct.variants
+                                        .filter(v => v.stock > 0)
+                                        .map(v => v.size)
+                                )).map(size => {
+                                    const totalStock = scannedProduct.variants
+                                        .filter(v => v.size === size && v.stock > 0)
+                                        .reduce((sum, v) => sum + v.stock, 0);
+                                    
+                                    return (
+                                        <button
+                                            key={size}
+                                            onClick={() => handleSizeSelected(size)}
+                                            className="p-3 rounded-lg border border-gray-700 bg-gray-800 hover:border-brand-500 hover:bg-brand-500/10 transition-all duration-150 text-center group"
+                                        >
+                                            <p className="text-lg font-bold text-white group-hover:text-brand-300">{size}</p>
+                                            <p className="text-xs text-gray-500">Stock: {totalStock}</p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        
+                        <button
+                            onClick={handleCloseSizeModal}
+                            className="btn-secondary w-full"
+                        >
+                            Cancel
+                        </button>
                     </div>
                 )}
             </Modal>

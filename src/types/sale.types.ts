@@ -21,6 +21,8 @@ export interface Sale {
     grandTotal: number;
     totalProfit: number;
     paymentMethod: 'Cash' | 'Card' | 'Transfer';
+    cashReceived: number;
+    changeAmount: number;
     soldBy: { _id: string; name: string } | string;
     createdAt: string;
     updatedAt: string;
@@ -36,6 +38,8 @@ export interface CreateSalePayload {
     paymentMethod?: 'Cash' | 'Card' | 'Transfer';
     discountType?: 'NONE' | 'PERCENTAGE' | 'FLAT';
     discountValue?: number;
+    cashReceived?: number;
+    changeAmount?: number;
 }
 
 export interface CreateSaleByBarcodePayload {
