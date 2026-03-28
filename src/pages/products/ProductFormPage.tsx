@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Loader2, RefreshCw, ImagePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { productService } from '../../api/productService';
 import { supplierService } from '../../api/supplierService';
@@ -44,6 +44,8 @@ export default function ProductFormPage() {
     const isEdit = !!id;
     const navigate = useNavigate();
     const qc = useQueryClient();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [imageBase64, setImageBase64] = useState<string | null>(null);
 
     const { data: suppliers = [] } = useQuery({
         queryKey: ['suppliers'],
@@ -78,8 +80,18 @@ export default function ProductFormPage() {
                 supplier: typeof product.supplier === 'object' && product.supplier ? product.supplier._id : (product.supplier as string | undefined) ?? '',
                 variants: product.variants.map(v => ({ size: v.size, color: v.color, stock: v.stock })),
             });
+            if (product.image) setImageBase64(product.image);
         }
     }, [product, reset]);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2MB'); return; }
+        const reader = new FileReader();
+        reader.onload = () => setImageBase64(reader.result as string);
+        reader.readAsDataURL(file);
+    };
 
     const createMutation = useMutation({
         mutationFn: productService.create,
@@ -94,8 +106,9 @@ export default function ProductFormPage() {
     });
 
     const onSubmit = (data: FormData) => {
-        if (isEdit) updateMutation.mutate({ id: id!, data });
-        else createMutation.mutate(data);
+        const payload = { ...data, image: imageBase64 ?? undefined };
+        if (isEdit) updateMutation.mutate({ id: id!, data: payload as any });
+        else createMutation.mutate(payload as any);
     };
 
     const isPending = createMutation.isPending || updateMutation.isPending;
@@ -110,6 +123,42 @@ export default function ProductFormPage() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                {/* Image upload */}
+                <div className="card space-y-3">
+                    <h2 className="section-title">Product Image</h2>
+                    <div className="flex items-start gap-4">
+                        {/* Preview */}
+                        <div
+                            className="w-28 h-28 rounded-xl border-2 border-dashed border-gray-700 bg-gray-800 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:border-brand-500 transition-colors"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {imageBase64
+                                ? <img src={imageBase64} alt="Product" className="w-full h-full object-cover" />
+                                : <ImagePlus className="w-8 h-8 text-gray-600" />
+                            }
+                        </div>
+                        <div className="space-y-2">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleImageChange}
+                            />
+                            <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-secondary text-sm flex items-center gap-2">
+                                <ImagePlus className="w-4 h-4" />
+                                {imageBase64 ? 'Change Image' : 'Upload Image'}
+                            </button>
+                            {imageBase64 && (
+                                <button type="button" onClick={() => { setImageBase64(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost text-sm text-red-400 flex items-center gap-1">
+                                    <X className="w-3.5 h-3.5" /> Remove
+                                </button>
+                            )}
+                            <p className="text-xs text-gray-500">JPG, PNG or WebP · max 2 MB</p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Basic info */}
                 <div className="card space-y-4">
                     <h2 className="section-title">Basic Information</h2>

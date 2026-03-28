@@ -76,11 +76,11 @@ export default function POSPage() {
 
     const handleSizeSelected = (size: string) => {
         if (!scannedProduct) return;
-        
+
         const colorsForSize = scannedProduct.variants
             .filter(v => v.size === size && v.stock > 0)
             .map(v => v.color);
-        
+
         if (colorsForSize.length === 1) {
             // Only one color available for this size, add directly
             addItem({
@@ -228,8 +228,11 @@ export default function POSPage() {
                                 : 'border-gray-800 bg-gray-900 hover:border-gray-700 hover:bg-gray-800/60'
                                 }`}
                         >
-                            <div className="w-full aspect-square bg-gray-800 rounded-lg mb-2 flex items-center justify-center">
-                                <span className="text-2xl">👟</span>
+                            <div className="w-full aspect-square bg-gray-800 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
+                                {(product as any).image
+                                    ? <img src={(product as any).image} alt={product.name} className="w-full h-full object-cover rounded-lg" />
+                                    : <span className="text-2xl">👟</span>
+                                }
                             </div>
                             <p className="text-sm font-semibold text-white truncate">{product.name}</p>
                             <p className="text-xs text-gray-500 truncate">{product.brand}</p>
@@ -601,7 +604,7 @@ export default function POSPage() {
                             <p className="text-sm text-gray-400">{scannedProduct.brand}</p>
                             <p className="text-lg font-bold text-brand-400 mt-1">{formatCurrency(scannedProduct.price)}</p>
                         </div>
-                        
+
                         <div>
                             <p className="text-sm font-medium text-gray-300 mb-3">Available Sizes:</p>
                             <div className="grid grid-cols-3 gap-2">
@@ -614,7 +617,7 @@ export default function POSPage() {
                                     const totalStock = scannedProduct.variants
                                         .filter(v => v.size === size && v.stock > 0)
                                         .reduce((sum, v) => sum + v.stock, 0);
-                                    
+
                                     return (
                                         <button
                                             key={size}
@@ -628,7 +631,7 @@ export default function POSPage() {
                                 })}
                             </div>
                         </div>
-                        
+
                         <button
                             onClick={handleCloseSizeModal}
                             className="btn-secondary w-full"

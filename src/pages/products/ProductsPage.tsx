@@ -95,8 +95,18 @@ export default function ProductsPage() {
                                 return (
                                     <tr key={product._id} className="table-row">
                                         <td className="table-cell">
-                                            <p className="font-semibold text-white">{product.name}</p>
-                                            <p className="text-xs text-gray-600">{product.barcode}</p>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center overflow-hidden shrink-0">
+                                                    {(product as any).image
+                                                        ? <img src={(product as any).image} alt={product.name} className="w-full h-full object-cover" />
+                                                        : <span className="text-lg">👟</span>
+                                                    }
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-white">{product.name}</p>
+                                                    <p className="text-xs text-gray-600">{product.barcode}</p>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className="table-cell">{product.brand ?? '—'}</td>
                                         <td className="table-cell">{product.category ?? '—'}</td>

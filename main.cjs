@@ -1,13 +1,11 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 function getDistPath() {
-    // Try multiple candidate paths to find index.html
     const candidates = [
-        // 1. Same folder as main.js (electron-packager structure)
         path.join(__dirname, 'dist', 'index.html'),
-        // 2. resources/app/dist (electron-builder extraResources)
         path.join(__dirname, '..', 'app', 'dist', 'index.html'),
     ];
     for (const p of candidates) {
@@ -15,6 +13,54 @@ function getDistPath() {
     }
     return candidates[0];
 }
+
+/* =============================================
+   IPC: Silent Print — no dialog
+   Uses Electron webContents.print({ silent: true })
+   Margins: 'printableArea' respects printer's
+   physical non-addressable zone (EPSON TM-U220)
+============================================= */
+ipcMain.handle('print-silent', async (event, htmlContent) => {
+    const tmpPath = path.join(os.tmpdir(), `shoe-inv-${Date.now()}.html`);
+    fs.writeFileSync(tmpPath, htmlContent, 'utf-8');
+
+    const printWin = new BrowserWindow({
+        show: false,
+        width: 600,
+        height: 800,
+        webPreferences: { nodeIntegration: false, contextIsolation: true, webSecurity: false },
+    });
+
+    // Wait for page to load
+    await new Promise((resolve, reject) => {
+        printWin.webContents.once('did-finish-load', resolve);
+        printWin.webContents.once('did-fail-load', (e, c, d) => reject(new Error(d)));
+        printWin.loadFile(tmpPath);
+    });
+
+    // Wait for layout/fonts to render
+    await new Promise(r => setTimeout(r, 800));
+
+    // Find default printer
+    const printers = await printWin.webContents.getPrintersAsync();
+    const defaultPrinter = printers.find(p => p.isDefault) || printers[0];
+
+    // Send print job silently — marginType:none gives CSS full positional control
+    // body padding-left:8mm in HTML keeps content past EPSON's non-addressable zone
+    printWin.webContents.print({
+        silent: true,
+        printBackground: true,
+        margins: { marginType: 'none' },
+        ...(defaultPrinter ? { deviceName: defaultPrinter.name } : {}),
+    });
+
+    // Wait for spooler, then clean up
+    await new Promise(r => setTimeout(r, 3000));
+    if (!printWin.isDestroyed()) printWin.close();
+    try { fs.unlinkSync(tmpPath); } catch (_) { }
+
+    return { success: true };
+});
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -25,9 +71,10 @@ function createWindow() {
         title: 'Shoe POS',
         autoHideMenuBar: true,
         webPreferences: {
+            preload: path.join(__dirname, 'preload.cjs'),  // Exposes electronAPI to renderer
             contextIsolation: true,
             nodeIntegration: false,
-            webSecurity: false, // Required: Vite adds crossorigin attrs that CORS-block under file://
+            webSecurity: false,
         },
     });
 
@@ -43,38 +90,13 @@ function createWindow() {
     win.webContents.setWindowOpenHandler(({ url }) => {
         const isLocal = url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1') || url.startsWith('blob:');
         if (isLocal) {
-            const isPrint = url.includes('/print');
             return {
                 action: 'allow',
-                overrideBrowserWindowOptions: {
-                    width: isPrint ? 800 : 900,
-                    height: isPrint ? 700 : 700,
-                    autoHideMenuBar: true,
-                    webPreferences: {
-                        contextIsolation: true,
-                        nodeIntegration: false,
-                    },
-                },
+                overrideBrowserWindowOptions: { width: 900, height: 700, autoHideMenuBar: true },
             };
         }
         shell.openExternal(url);
         return { action: 'deny' };
-    });
-
-    // When a child window finishes loading a /print URL, trigger silent print
-    app.on('browser-window-created', (_e, childWin) => {
-        childWin.webContents.on('did-finish-load', () => {
-            const winUrl = childWin.webContents.getURL();
-            if (winUrl.includes('/print')) {
-                childWin.webContents.print(
-                    { silent: false, printBackground: true },
-                    (_success, _errorType) => {
-                        // Close the window after print dialog is dismissed
-                        if (!childWin.isDestroyed()) childWin.close();
-                    }
-                );
-            }
-        });
     });
 }
 
